@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess The Word</title>
+    <style>
+        /* Light Mode Styles */
+        :root {
+            --background-color: white;
+            --text-color: black;
+            --border-color: #333;
+            --button-background: #ddd;
+            --button-text: black;
+        }
+
+        /* Dark Mode Styles */
+        .dark-mode {
+            --background-color: #121212;
+            --text-color: white;
+            --border-color: #555;
+            --button-background: #333;
+            --button-text: white;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: background-color 0.5s, color 0.5s;
+        }
+
+        #game-area {
+            width: 100%;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        input {
+            font-size: 18px;
+            padding: 5px;
+            margin: 10px;
+            background-color: var(--button-background);
+            color: var(--button-text);
+            border: 1px solid var(--border-color);
+            transition: background-color 0.5s, color 0.5s;
+        }
+
+        button {
+            font-size: 18px;
+            padding: 10px;
+            margin: 10px;
+            background-color: var(--button-background);
+            color: var(--button-text);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.5s, color 0.5s;
+        }
+
+        #result {
+            font-size: 24px;
+            margin-top: 20px;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #previousGuesses {
+            font-size: 18px;
+            margin-top: 20px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+        }
+
+        .guesses-column {
+            display: flex;
+            flex-direction: column;
+            margin: 10px;
+        }
+
+        .word-box {
+            display: flex;
+            align-items: center;
+            margin: 10px;
+        }
+
+        .letter-row {
+            display: flex;
+        }
+
+        .letter-box {
+            display: inline-block;
+            border: 2px solid var(--border-color);
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 2px;
+            cursor: pointer;
+            transition: background-color 0.5s, color 0.5s, border-color 0.5s;
+        }
+
+        .letter-box.green { background-color: green; color: white; }
+        .letter-box.red { background-color: red; color: white; }
+        .letter-box.yellow { background-color: yellow; color: black; }
+
+        .matching-count {
+            margin-left: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #555;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; /* Crayon-like font */
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-area">
+    <h1>Word Guessing Game</h1>
+    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <p>Guess the 5-letter word. Each letter is unique!</p>
+
+    <input type="text" id="guess" maxlength="5" placeholder="Enter your guess" />
+    <button onclick="submitGuess()">Submit Guess</button>
+
+    <div id="result"></div>
+    <div id="guessesLeft"></div>
+
+    <!-- Two columns for previous guesses -->
+    <div id="previousGuesses">
+        <div id="column1" class="guesses-column"></div>
+        <div id="column2" class="guesses-column"></div>
+    </div>
+</div>
+
+<script>
+let chosenWord = "";
+let attempts = 0;
+const maxAttempts = 10;
+let previousGuesses = [];
+
+// Color cycle order
+const colorCycle = ["", "green", "red", "yellow"];
+
+// Function to select a random 5-letter word from the API
+async function selectHiddenWord() {
+    const response = await fetch("https://api.datamuse.com/words?sp=?????&max=1000");
+    const data = await response.json();
+    // Filter words to ensure they have unique letters
+    const uniqueLetterWords = data.filter(wordObj => new Set(wordObj.word).size === 5);
+    if (uniqueLetterWords.length === 0) {
+        console.error("No suitable 5-letter words found.");
+        return;
+    }
+    chosenWord = uniqueLetterWords[Math.floor(Math.random() * uniqueLetterWords.length)].word;
+}
+
+// Initialize hidden word selection
+selectHiddenWord();
+
+// Function to toggle between light and dark mode
+function toggleDarkMode() {
+    document.body.classList.toggle("dark-mode");
+}
+
+// Function to count how many letters from the guess are in the chosen word
+function countMatchingLetters(guess, chosenWord) {
+    let matchCount = 0;
+    for (let i = 0; i < guess.length; i++) {
+        if (chosenWord.includes(guess[i])) {
+            matchCount++;
+        }
+    }
+    return matchCount;
+}
+
+// Add jiggle effect when clicked
+function addJiggleEffect(element) {
+    element.classList.add('jiggle');
+    setTimeout(() => {
+        element.classList.remove('jiggle');
+    }, 200);
+}
+
+// Function to change color of all matching letters
+function changeLetterColor(letter) {
+    const allLetters = document.querySelectorAll(`.letter-box[data-letter="${letter}"]`);
+    allLetters.forEach((el) => {
+        let currentColor = colorCycle.indexOf(el.dataset.color || "");
+        let nextColor = (currentColor + 1) % colorCycle.length;
+        el.classList.remove("green", "red", "yellow");
+        if (nextColor > 0) el.classList.add(colorCycle[nextColor]);
+        el.dataset.color = colorCycle[nextColor];
+    });
+}
+
+// Update the display of previous guesses in two columns
+function updatePreviousGuesses() {
+    let column1 = document.getElementById("column1");
+    let column2 = document.getElementById("column2");
+
+    column1.innerHTML = '';
+    column2.innerHTML = '';
+
+    previousGuesses.forEach((guessData, index) => {
+        let wordBox = document.createElement('div');
+        wordBox.classList.add('word-box');
+
+        // Create a row for the letters
+        let letterRow = document.createElement('div');
+        letterRow.classList.add('letter-row');
+
+        guessData.word.split('').forEach(letter => {
+            let letterBox = document.createElement('div');
+            letterBox.classList.add('letter-box');
+            letterBox.textContent = letter;
+            letterBox.dataset.letter = letter; // Set data attribute to track the letter
+            letterBox.dataset.color = ""; // Track color state
+            letterBox.onclick = function() {
+                changeLetterColor(letter); // Change color for all matching letters
+                addJiggleEffect(letterBox); // Optional: jiggle effect
+            };
+            letterRow.appendChild(letterBox);
+        });
+
+        // Add the letter row
+        wordBox.appendChild(letterRow);
+
+        // Display number of correct letters (in a crayon-like font)
+        let resultText = document.createElement('div');
+        resultText.classList.add('matching-count');
+        resultText.textContent = `${guessData.matches}`; // Just the number of correct letters
+
+        wordBox.appendChild(resultText);
+
+        // Alternate between columns for stacking
+        if (index < 5) {
+            column1.appendChild(wordBox);
+        } else {
+            column2.appendChild(wordBox);
+        }
+    });
+}
+
+// Function to fade in and out the message
+function showFadeMessage(message) {
+    const resultDiv = document.getElementById("result");
+    resultDiv.textContent = message;
+    resultDiv.style.opacity = 1; // Fade in
+
+    // Set a timeout to fade out after 2 seconds
+    setTimeout(() => {
+        resultDiv.style.opacity = 0; // Fade out
+    }, 2000);
+}
+
+// Function to check if a word is valid using Datamuse API
+async function isValidWord(word) {
+    const response = await fetch(`https://api.datamuse.com/words?sp=${word}&max=1`);
+    const data = await response.json();
+    return data.length > 0 && data[0].word === word;
+}
+
+// Handle the player's guess submission
+async function submitGuess() {
+    let guess = document.getElementById("guess").value.toLowerCase();
+
+    // Validate if the guess is a valid English word and 5 letters long
+    if (guess.length !== 5 || !(await isValidWord(guess))) {
+        showFadeMessage("Please enter a valid 5-letter word from the English language.");
+        return;
+    }
+
+    attempts++;
+
+    // Check if the guess is correct
+    if (guess === chosenWord) {
+        document.getElementById("result").style.opacity = 1; // Keep result visible
+        document.getElementById("result").textContent = `Congratulations! You guessed the word: ${chosenWord}`;
+        document.getElementById("guessesLeft").textContent = "";
+        return;
+    }
+
+    // Give feedback on the number of matching letters
+    let matchingLetters = countMatchingLetters(guess, chosenWord);
+    document.getElementById("result").textContent = `${guess} has ${matchingLetters} matching letters.`;
+    document.getElementById("result").style.opacity = 1; // Keep result visible
+
+    // Store the guess and update the display of previous guesses
+    previousGuesses.push({ word: guess, matches: matchingLetters });
+    updatePreviousGuesses();
+
+    // Check if the player has run out of attempts
+    if (attempts >= maxAttempts) {
+        document.getElementById("result").style.opacity = 1; // Keep result visible
+        document.getElementById("result").textContent = `Game Over! The correct word was: ${chosenWord}`;
+        document.getElementById("guessesLeft").textContent = "";
+    } else {
+        document.getElementById("guessesLeft").textContent = `Guesses Left: ${maxAttempts - attempts}`;
+    }
+
+    // Clear input for next guess
+    document.getElementById("guess").value = '';
+}
+
+document.getElementById("guessesLeft").textContent = `Guesses Left: ${maxAttempts}`;
+
+// Event listener to handle "Enter" key for submission
+document.getElementById("guess").addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        submitGuess();
+    }
+});
+</script>
+
+</body>
+</html>
