@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guess The Word</title>
+    <title>Word Guessing Game</title>
     <style>
         /* Light Mode Styles */
         :root {
@@ -116,6 +116,53 @@
             font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; /* Crayon-like font */
             letter-spacing: 2px;
         }
+        /* Pop-up styles */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+            z-index: 10;
+        }
+        .popup-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .popup {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 300px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .popup h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        .popup p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .popup button {
+            padding: 10px 20px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .popup button:hover {
+            background-color: #555;
+        }
     </style>
 </head>
 <body>
@@ -135,6 +182,17 @@
     <div id="previousGuesses">
         <div id="column1" class="guesses-column"></div>
         <div id="column2" class="guesses-column"></div>
+    </div>
+</div>
+
+<!-- Pop-up for game rules -->
+<div class="popup-overlay" id="rulesPopupOverlay">
+    <div class="popup" id="rulesPopup">
+        <h2>How to Play</h2>
+        <p>Guess the 5-letter word with unique letters.</p>
+        <p>You have 10 guesses. After each guess, you’ll see the number of correct letters.</p>
+        <p>Try to get the word before you run out of attempts!</p>
+        <button onclick="closePopup()">Got it!</button>
     </div>
 </div>
 
@@ -167,6 +225,21 @@ selectHiddenWord();
 function toggleDarkMode() {
     document.body.classList.toggle("dark-mode");
 }
+
+// Function to show the rules popup
+function showPopup() {
+    const overlay = document.getElementById("rulesPopupOverlay");
+    overlay.classList.add("show");
+}
+
+// Function to close the rules popup
+function closePopup() {
+    const overlay = document.getElementById("rulesPopupOverlay");
+    overlay.classList.remove("show");
+}
+
+// Show the rules popup when the page loads
+window.onload = showPopup;
 
 // Function to count how many letters from the guess are in the chosen word
 function countMatchingLetters(guess, chosenWord) {
